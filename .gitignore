@@ -1,0 +1,25 @@
+# Entornos virtuales de Python y caché
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Variables de entorno y bases de datos locales (NO subir .env)
+.env
+*.db
+*.sqlite3
+
+# Dependencias y build de Node / Frontend
+node_modules/
+dist/
+.vite/
+
+# Archivos de sistema / IDE
+.DS_Store
+Thumbs.db
+
+#Archivos de TPI
+devoluciones_tps.txt
+PLAN_ADAPTACION_TPI.md
+TPI_Food_Store.pdf
+UML_Food_Store.svg

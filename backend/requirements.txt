@@ -1,0 +1,11 @@
+fastapi[standard]
+sqlmodel
+uvicorn
+sqlalchemy
+psycopg2-binary
+psycopg[binary]
+python-dotenv
+pyjwt
+bcrypt
+python-multipart
+email-validator

@@ -1,6 +1,6 @@
 from typing import Callable, List
-import jwt
 from fastapi import Depends, HTTPException, status
+from jose import JWTError
 from sqlmodel import Session
 
 from app.core.database import get_session
@@ -13,7 +13,7 @@ def get_current_user(
     token: str = Depends(oauth2_scheme),
     session: Session = Depends(get_session),
 ) -> Usuario:
-    """Valida el JWT extraído de la cookie HttpOnly y obtiene el usuario de la base (RN-10)."""
+    """Lee la cookie HttpOnly, valida firma y expiración del JWT y carga el usuario."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="No se pudieron validar las credenciales",
@@ -21,14 +21,14 @@ def get_current_user(
     )
     try:
         payload = decode_access_token(token)
-        email: str | None = payload.get("sub")
-        if not email:
+        username: str | None = payload.get("sub")
+        if not username:
             raise credentials_exception
-    except jwt.PyJWTError as exc:
+    except JWTError as exc:
         raise credentials_exception from exc
 
     repo = UsuarioRepository(session)
-    usuario = repo.get_by_email(email)
+    usuario = repo.get_by_username(username)
     if usuario is None:
         raise credentials_exception
 
@@ -38,8 +38,8 @@ def get_current_user(
 def get_current_active_user(
     current_user: Usuario = Depends(get_current_user),
 ) -> Usuario:
-    """Verifica que la cuenta del usuario autenticado no esté desactivada (deleted_at is None)."""
-    if current_user.deleted_at is not None:
+    """Rechaza usuarios con disabled=True respondiendo 400."""
+    if current_user.disabled:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cuenta de usuario desactivada",
@@ -48,19 +48,13 @@ def get_current_active_user(
 
 
 def require_role(allowed_roles: List[str]) -> Callable[..., Usuario]:
-    """Dependencia reutilizable de autorización RBAC que verifica los roles vigentes
-    del usuario en UsuarioRol (expires_at nulo o futuro — Consigna c, RN-14).
-    """
+    """Verifica que el rol del usuario esté dentro de allowed_roles (403 si no)."""
     normalized_allowed = {r.strip().lower() for r in allowed_roles}
 
     def role_checker(
         current_user: Usuario = Depends(get_current_active_user),
-        session: Session = Depends(get_session),
     ) -> Usuario:
-        assert current_user.id is not None
-        repo = UsuarioRepository(session)
-        vigentes = {r.strip().lower() for r in repo.get_active_roles(current_user.id)}
-        if not vigentes.intersection(normalized_allowed):
+        if current_user.role.strip().lower() not in normalized_allowed:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="No tiene los permisos necesarios para realizar esta acción",

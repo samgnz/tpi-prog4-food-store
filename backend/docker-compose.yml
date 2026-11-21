@@ -1,11 +1,11 @@
 services:
   db:
     image: postgres:15
-    container_name: tp10_postgres
+    container_name: tpi_postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 1234
-      POSTGRES_DB: tp10_db
+      POSTGRES_DB: tpi_db
     ports:
       - "5432:5432"
     volumes:

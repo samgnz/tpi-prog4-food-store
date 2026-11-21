@@ -1,23 +1,28 @@
-import os
-from dotenv import load_dotenv
-from sqlalchemy import text
+from sqlalchemy import create_engine as sa_create_engine, text
+from sqlalchemy.engine import make_url
 from sqlmodel import Session, SQLModel, create_engine
 
-load_dotenv()
+from app.core.config import settings
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:1234@localhost:5432/foodstore_db",
+connect_args = (
+    {"check_same_thread": False}
+    if settings.DATABASE_URL.startswith("sqlite")
+    else {}
 )
 
 engine = create_engine(
-    DATABASE_URL,
+    settings.DATABASE_URL,
     echo=False,
+    connect_args=connect_args,
 )
 
+
 def _ensure_database_exists() -> None:
+    """Si la URL es PostgreSQL y la base de datos aún no existe en el servidor,
+    se conecta a la base 'postgres' y la crea automáticamente.
+    """
     try:
-        url = make_url(DATABASE_URL)
+        url = make_url(settings.DATABASE_URL)
         target_db = url.database
         if not target_db or not url.drivername.startswith("postgresql"):
             return
@@ -41,37 +46,22 @@ def _ensure_database_exists() -> None:
         finally:
             admin_engine.dispose()
     except Exception as exc:
-        # Si falla la conexión o el usuario no tiene permisos de CREATEDB, continúa normalmente
         print(f"Aviso al verificar existencia de la base de datos: {exc}")
 
 
-def _migrate_existing_tables() -> None:
-    """Asegura que las tablas heredadas de la Unidad 8 tengan las columnas de auditoría,
-    borrado lógico y enlace requeridas en la Unidad 9.
-    """
-    alter_statements = [
-        "ALTER TABLE IF EXISTS categorias ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()",
-        "ALTER TABLE IF EXISTS categorias ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()",
-        "ALTER TABLE IF EXISTS categorias ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL",
-        "ALTER TABLE IF EXISTS productos ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()",
-        "ALTER TABLE IF EXISTS productos ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()",
-        "ALTER TABLE IF EXISTS productos ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL",
-        "ALTER TABLE IF EXISTS producto_categoria ADD COLUMN IF NOT EXISTS es_principal BOOLEAN DEFAULT FALSE",
-        "ALTER TABLE IF EXISTS pedidos ADD COLUMN IF NOT EXISTS usuario_id INTEGER NULL REFERENCES usuarios(id)",
-        "ALTER TABLE IF EXISTS pedidos ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()",
-        "ALTER TABLE IF EXISTS pedidos ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()",
-        "ALTER TABLE IF EXISTS pedidos ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL",
-    ]
-    with engine.begin() as conn:
-        for stmt in alter_statements:
-            conn.execute(text(stmt))
+def session_factory() -> Session:
+    return Session(engine)
 
 
-def create_db_and_tables() -> None:
+def create_all_tables() -> None:
+    _ensure_database_exists()
     SQLModel.metadata.create_all(engine)
-    _migrate_existing_tables()
+
+
+# Alias por compatibilidad con imports existentes
+create_db_and_tables = create_all_tables
 
 
 def get_session():
-    with Session(engine) as session:
+    with session_factory() as session:
         yield session

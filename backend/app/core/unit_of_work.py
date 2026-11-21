@@ -1,10 +1,10 @@
 from typing import Callable, Optional
 from sqlmodel import Session
-from app.core.database import engine
+from app.core.database import session_factory
 
 
 class BaseUnitOfWork:
-    def __init__(self, session_factory: Callable[[], Session] = lambda: Session(engine)):
+    def __init__(self, session_factory: Callable[[], Session] = session_factory):
         self.session_factory = session_factory
         self.session: Optional[Session] = None
 
@@ -30,3 +30,5 @@ class BaseUnitOfWork:
     def rollback(self) -> None:
         if self.session is not None:
             self.session.rollback()
+
+UnitOfWork = BaseUnitOfWork

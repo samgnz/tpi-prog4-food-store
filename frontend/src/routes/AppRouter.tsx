@@ -1,7 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AdminUsersPage, LoginPage, RegisterPage } from "@/features/auth";
 import { CategoriesPage } from "@/features/categories";
-import { IngredientsPage } from "@/features/ingredients";
 import { ProductsPage } from "@/features/products";
 import { Navbar } from "@/shared/components/Navbar";
 import { UnauthorizedPage } from "@/shared/components/UnauthorizedPage";
@@ -13,11 +12,10 @@ export const AppRouter = () => {
 
   return (
     <div
-      className={`min-h-screen antialiased transition-colors ${
-        darkMode
+      className={`min-h-screen antialiased transition-colors ${darkMode
           ? "dark bg-slate-900 text-slate-100"
           : "bg-[#f3f4f9] text-slate-800"
-      }`}
+        }`}
     >
       <div className="w-full max-w-5xl mx-auto px-4 py-6 space-y-6">
         <Navbar />
@@ -34,8 +32,6 @@ export const AppRouter = () => {
               <Route path="/categorias" element={<CategoriesPage />} />
               <Route path="/products" element={<ProductsPage />} />
               <Route path="/productos" element={<ProductsPage />} />
-              <Route path="/ingredients" element={<IngredientsPage />} />
-              <Route path="/ingredientes" element={<IngredientsPage />} />
             </Route>
 
             {/* Ruta de administración exclusiva para rol admin */}

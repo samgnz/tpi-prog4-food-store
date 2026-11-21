@@ -15,6 +15,35 @@ engine = create_engine(
     echo=False,
 )
 
+def _ensure_database_exists() -> None:
+    try:
+        url = make_url(DATABASE_URL)
+        target_db = url.database
+        if not target_db or not url.drivername.startswith("postgresql"):
+            return
+
+        admin_url = url.set(database="postgres").render_as_string(
+            hide_password=False
+        )
+        admin_engine = sa_create_engine(
+            admin_url, isolation_level="AUTOCOMMIT"
+        )
+        try:
+            with admin_engine.connect() as conn:
+                exists = conn.execute(
+                    text("SELECT 1 FROM pg_database WHERE datname = :dbname"),
+                    {"dbname": target_db},
+                ).scalar()
+                if not exists:
+                    safe_db_name = target_db.replace('"', '""')
+                    conn.execute(text(f'CREATE DATABASE "{safe_db_name}"'))
+                    print(f"Base de datos '{target_db}' creada automáticamente.")
+        finally:
+            admin_engine.dispose()
+    except Exception as exc:
+        # Si falla la conexión o el usuario no tiene permisos de CREATEDB, continúa normalmente
+        print(f"Aviso al verificar existencia de la base de datos: {exc}")
+
 
 def _migrate_existing_tables() -> None:
     """Asegura que las tablas heredadas de la Unidad 8 tengan las columnas de auditoría,

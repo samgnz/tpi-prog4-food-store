@@ -21,9 +21,6 @@ export const Navbar = () => {
   const isProductos =
     location.pathname.startsWith("/products") ||
     location.pathname.startsWith("/productos");
-  const isIngredientes =
-    location.pathname.startsWith("/ingredients") ||
-    location.pathname.startsWith("/ingredientes");
   const isAdminUsers = location.pathname.startsWith("/admin/users");
   const isLogin = location.pathname.startsWith("/login");
   const isRegister = location.pathname.startsWith("/register");
@@ -55,42 +52,29 @@ export const Navbar = () => {
             <nav className="flex items-center gap-1.5">
               <Link
                 to="/categories"
-                className={`px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  isCategorias
+                className={`px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors ${isCategorias
                     ? "bg-[#4338ca] text-white shadow-sm"
                     : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                }`}
+                  }`}
               >
                 Categorías
               </Link>
               <Link
                 to="/products"
-                className={`px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  isProductos
+                className={`px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors ${isProductos
                     ? "bg-[#4338ca] text-white shadow-sm"
                     : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                }`}
+                  }`}
               >
                 Productos
-              </Link>
-              <Link
-                to="/ingredients"
-                className={`px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                  isIngredientes
-                    ? "bg-[#4338ca] text-white shadow-sm"
-                    : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                }`}
-              >
-                Ingredientes
               </Link>
               {isAdmin && (
                 <Link
                   to="/admin/users"
-                  className={`px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                    isAdminUsers
+                  className={`px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors ${isAdminUsers
                       ? "bg-[#4338ca] text-white shadow-sm"
                       : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                  }`}
+                    }`}
                 >
                   Usuarios
                 </Link>
@@ -108,11 +92,10 @@ export const Navbar = () => {
                   {user.roles.map((rol) => (
                     <span
                       key={rol}
-                      className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
-                        rol === "admin"
+                      className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${rol === "admin"
                           ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300"
                           : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300"
-                      }`}
+                        }`}
                     >
                       {rol}
                     </span>
@@ -152,21 +135,19 @@ export const Navbar = () => {
             </button>
             <Link
               to="/login"
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                isLogin
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${isLogin
                   ? "bg-[#4338ca] text-white shadow-sm"
                   : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-              }`}
+                }`}
             >
               Iniciar sesión
             </Link>
             <Link
               to="/register"
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                isRegister
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${isRegister
                   ? "bg-[#4338ca] text-white shadow-sm"
                   : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-              }`}
+                }`}
             >
               Registrarse
             </Link>

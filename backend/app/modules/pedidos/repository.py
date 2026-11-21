@@ -1,62 +1,74 @@
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Tuple
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.core.repository import BaseRepository
-from app.pedidos.models import DetallePedido, Pedido
-from app.producto.model import Producto
+from app.modules.pedidos.models import DetallePedido, Pedido
 
 
 class PedidoRepository(BaseRepository[Pedido]):
-    """Repositorio de Pedido que filtra aquellos con borrado lógico (deleted_at != None)."""
-
     def __init__(self, session: Session):
         super().__init__(session, Pedido)
 
-    def get_all_active(self, skip: int = 0, limit: int = 100) -> List[Pedido]:
+    def list_by_usuario(
+        self,
+        skip: int = 0,
+        limit: int = 20,
+        usuario_id: Optional[int] = None,
+        estado: Optional[str] = None,
+    ) -> Tuple[List[Pedido], int]:
+        base_query = select(Pedido)
+        count_query = select(func.count()).select_from(Pedido)
+
+        if usuario_id is not None:
+            base_query = base_query.where(Pedido.usuario_id == usuario_id)
+            count_query = count_query.where(
+                Pedido.usuario_id == usuario_id
+            )
+
+        if estado and estado.strip():
+            est = estado.strip().upper()
+            base_query = base_query.where(Pedido.estado == est)
+            count_query = count_query.where(Pedido.estado == est)
+
+        total = int(self.session.exec(count_query).one())
+        items = list(
+            self.session.exec(
+                base_query.order_by(Pedido.id.desc())  # type: ignore[union-attr]
+                .offset(skip)
+                .limit(limit)
+            ).all()
+        )
+        return items, total
+
+    def count_by_estado(self, estado: str) -> int:
         statement = (
-            select(Pedido)
-            .where(Pedido.deleted_at == None)  # noqa: E711
-            .order_by(Pedido.id)  # type: ignore[arg-type]
-            .offset(skip)
-            .limit(limit)
+            select(func.count())
+            .select_from(Pedido)
+            .where(Pedido.estado == estado)
         )
-        return list(self.session.exec(statement).all())
+        return int(self.session.exec(statement).one())
 
-    def get_active_by_id(self, pedido_id: int) -> Optional[Pedido]:
-        statement = select(Pedido).where(
-            Pedido.id == pedido_id,
-            Pedido.deleted_at == None,  # noqa: E711
-        )
-        return self.session.exec(statement).first()
-
-    def soft_delete(self, pedido: Pedido) -> Pedido:
+    def count_pedidos_hoy(self) -> int:
         now = datetime.now(timezone.utc)
-        pedido.deleted_at = now
-        pedido.updated_at = now
-        self.session.add(pedido)
-        self.session.flush()
-        return pedido
+        start_of_day = datetime(
+            now.year, now.month, now.day, tzinfo=timezone.utc
+        )
+        statement = (
+            select(func.count())
+            .select_from(Pedido)
+            .where(Pedido.created_at >= start_of_day)
+        )
+        return int(self.session.exec(statement).one())
+
+    def sum_ingresos_entregados(self) -> float:
+        statement = select(
+            func.coalesce(func.sum(Pedido.total), 0.0)
+        ).where(Pedido.estado == "ENTREGADO")
+        return float(self.session.exec(statement).one())
 
 
 class DetallePedidoRepository(BaseRepository[DetallePedido]):
     def __init__(self, session: Session):
         super().__init__(session, DetallePedido)
-
-    def get_by_pedido_id(self, pedido_id: int) -> List[DetallePedido]:
-        statement = select(DetallePedido).where(
-            DetallePedido.pedido_id == pedido_id
-        )
-        return list(self.session.exec(statement).all())
-
-
-class ProductoRepository(BaseRepository[Producto]):
-    def __init__(self, session: Session):
-        super().__init__(session, Producto)
-
-    def get_active_by_id(self, producto_id: int) -> Optional[Producto]:
-        statement = select(Producto).where(
-            Producto.id == producto_id,
-            Producto.deleted_at == None,  # noqa: E711
-        )
-        return self.session.exec(statement).first()

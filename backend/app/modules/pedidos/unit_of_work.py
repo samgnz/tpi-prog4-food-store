@@ -1,14 +1,14 @@
 from app.core.unit_of_work import BaseUnitOfWork
-from app.pedidos.repository import (
-    PedidoRepository,
+from app.modules.pedidos.repository import (
     DetallePedidoRepository,
-    ProductoRepository,
+    PedidoRepository,
 )
+from app.modules.productos.repository import ProductoRepository
 
 
 class PedidoUnitOfWork(BaseUnitOfWork):
-    """Unit of Work del módulo pedidos: abre la sesión y expone los repositorios
-    de pedidos, detalles y productos dentro de una misma transacción.
+    """Unit of Work del módulo pedidos: expone los repositorios de pedidos,
+    detalles y productos compartiendo la misma sesión transaccional.
     """
 
     pedidos: PedidoRepository

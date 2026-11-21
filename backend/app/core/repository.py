@@ -20,11 +20,14 @@ class BaseRepository(Generic[T]):
     def get_by_id(self, entity_id: Any) -> Optional[T]:
         return self.session.get(self.model, entity_id)
 
-    def create(self, obj: T) -> T:
+    def add(self, obj: T) -> T:
         self.session.add(obj)
         self.session.flush()
         self.session.refresh(obj)
         return obj
+
+    def create(self, obj: T) -> T:
+        return self.add(obj)
 
     def update(self, obj: T) -> T:
         self.session.add(obj)

@@ -1,40 +1,47 @@
-from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel, Field, field_validator
+from typing import Any, Optional
+from pydantic import field_validator, model_validator
+from sqlmodel import Field, SQLModel
 
 
-class CategoriaBase(BaseModel):
-    nombre: str = Field(..., min_length=1, example="Pizzas")
-    descripcion: str = Field(default="", example="Pizzas napolitanas de masa madre")
-
-    @field_validator("nombre")
-    @classmethod
-    def validar_nombre_no_vacio(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("El nombre no puede estar vacío")
-        return v.strip()
-
-
-class CategoriaCreate(CategoriaBase):
-    pass
-
-
-class CategoriaUpdate(BaseModel):
-    nombre: Optional[str] = Field(None, min_length=1)
-    descripcion: Optional[str] = None
+class CategoriaCreate(SQLModel):
+    nombre: str = Field(..., min_length=2, max_length=100)
+    descripcion: str = Field(default="")
 
     @field_validator("nombre")
     @classmethod
-    def validar_nombre_no_vacio(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and not v.strip():
-            raise ValueError("El nombre no puede estar vacío")
-        return v.strip() if v is not None else None
+    def validar_nombre(cls, v: str) -> str:
+        limpio = v.strip()
+        if len(limpio) < 2:
+            raise ValueError("El nombre debe tener al menos 2 caracteres")
+        return limpio
 
 
-class CategoriaRead(CategoriaBase):
+class CategoriaUpdate(SQLModel):
+    nombre: Optional[str] = Field(default=None, min_length=2, max_length=100)
+    descripcion: Optional[str] = Field(default=None)
+
+    @model_validator(mode="before")
+    @classmethod
+    def rechazar_nulos_explicitos(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            for campo in ("nombre", "descripcion"):
+                if campo in data and data[campo] is None:
+                    raise ValueError(f"El campo '{campo}' no puede ser nulo")
+        return data
+
+    @field_validator("nombre")
+    @classmethod
+    def validar_nombre(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        limpio = v.strip()
+        if len(limpio) < 2:
+            raise ValueError("El nombre debe tener al menos 2 caracteres")
+        return limpio
+
+
+class CategoriaRead(SQLModel):
     id: int
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    deleted_at: Optional[datetime] = None
-
-    model_config = {"from_attributes": True}
+    nombre: str
+    descripcion: str
+    activo: bool

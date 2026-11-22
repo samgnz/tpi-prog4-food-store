@@ -1,81 +1,119 @@
-from typing import List, Optional
-from fastapi import APIRouter, Depends, Path, Query, status
-from sqlmodel import Session
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
-from app.core.database import get_session
-from app.modules.usuarios.dependencies import (
-    get_current_active_user,
-    require_role,
+from app.core.deps import require_role
+from app.modules.categorias.service import CategoriaNoEncontrada
+from app.modules.productos.schemas import (
+    ProductoCreate,
+    ProductoRead,
+    ProductosPaginados,
+    ProductoStockUpdate,
+    ProductoUpdate,
 )
+from app.modules.productos.service import ProductoNoEncontrado, ProductoService
+from app.modules.productos.unit_of_work import ProductoUnitOfWork
 from app.modules.usuarios.models import Usuario
-from app.producto import schema as schemas
-from app.producto import service as services
 
 router = APIRouter(prefix="/productos", tags=["Productos"])
 
 
-@router.post(
-    "", response_model=schemas.ProductoRead, status_code=status.HTTP_201_CREATED
-)
-@router.post(
-    "/",
-    response_model=schemas.ProductoRead,
-    status_code=status.HTTP_201_CREATED,
-    include_in_schema=False,
-)
-def alta_producto(
-    producto: schemas.ProductoCreate,
-    session: Session = Depends(get_session),
-    _admin: Usuario = Depends(require_role(["admin"])),
-):
-    return services.crear(session, producto)
+def get_producto_service() -> ProductoService:
+    return ProductoService(ProductoUnitOfWork())
 
 
 @router.get(
     "",
-    response_model=List[schemas.ProductoRead],
+    response_model=ProductosPaginados,
     status_code=status.HTTP_200_OK,
-)
-@router.get(
-    "/",
-    response_model=List[schemas.ProductoRead],
-    status_code=status.HTTP_200_OK,
-    include_in_schema=False,
 )
 def listar_productos(
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, le=200),
+    limit: int = Query(20, ge=1, le=100),
+    search: Optional[str] = Query(None),
+    categoria_id: Optional[int] = Query(None, gt=0),
     disponible: Optional[bool] = Query(None),
-    session: Session = Depends(get_session),
-    _user: Usuario = Depends(get_current_active_user),
-):
-    return services.obtener_todos(session, skip, limit, disponible)
+    service: ProductoService = Depends(get_producto_service),
+) -> ProductosPaginados:
+    return service.listar(
+        skip=skip,
+        limit=limit,
+        search=search,
+        categoria_id=categoria_id,
+        disponible=disponible,
+    )
 
 
 @router.get(
-    "/{id}", response_model=schemas.ProductoRead, status_code=status.HTTP_200_OK
+    "/{id}",
+    response_model=ProductoRead,
+    status_code=status.HTTP_200_OK,
 )
 def detalle_producto(
     id: int = Path(..., gt=0),
-    session: Session = Depends(get_session),
-    _user: Usuario = Depends(get_current_active_user),
-):
-    return services.obtener_por_id(session, id)
+    service: ProductoService = Depends(get_producto_service),
+) -> ProductoRead:
+    try:
+        return service.obtener_por_id(id)
+    except ProductoNoEncontrado as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+
+
+@router.post(
+    "",
+    response_model=ProductoRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def crear_producto(
+    data: ProductoCreate,
+    service: ProductoService = Depends(get_producto_service),
+    _admin: Usuario = Depends(require_role(["admin"])),
+) -> ProductoRead:
+    try:
+        return service.crear(data)
+    except CategoriaNoEncontrada as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
 
 @router.put(
-    "/{id}", response_model=schemas.ProductoRead, status_code=status.HTTP_200_OK
-)
-@router.patch(
-    "/{id}", response_model=schemas.ProductoRead, status_code=status.HTTP_200_OK
+    "/{id}",
+    response_model=ProductoRead,
+    status_code=status.HTTP_200_OK,
 )
 def actualizar_producto(
-    producto: schemas.ProductoUpdate,
+    data: ProductoUpdate,
     id: int = Path(..., gt=0),
-    session: Session = Depends(get_session),
+    service: ProductoService = Depends(get_producto_service),
     _admin: Usuario = Depends(require_role(["admin"])),
-):
-    return services.actualizar_total(session, id, producto)
+) -> ProductoRead:
+    try:
+        return service.actualizar(id, data)
+    except (ProductoNoEncontrado, CategoriaNoEncontrada) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+
+
+@router.patch(
+    "/{id}/stock",
+    response_model=ProductoRead,
+    status_code=status.HTTP_200_OK,
+)
+def actualizar_stock_producto(
+    data: ProductoStockUpdate,
+    id: int = Path(..., gt=0),
+    service: ProductoService = Depends(get_producto_service),
+    _admin: Usuario = Depends(require_role(["admin"])),
+) -> ProductoRead:
+    try:
+        return service.actualizar_stock(id, data)
+    except ProductoNoEncontrado as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
 
 
 @router.delete(
@@ -84,50 +122,12 @@ def actualizar_producto(
 )
 def eliminar_producto(
     id: int = Path(..., gt=0),
-    session: Session = Depends(get_session),
+    service: ProductoService = Depends(get_producto_service),
     _admin: Usuario = Depends(require_role(["admin"])),
-):
-    return services.eliminar(session, id)
-
-
-@router.post(
-    "/{id}/categorias",
-    response_model=schemas.ProductoRead,
-    status_code=status.HTTP_200_OK,
-)
-def asociar_categoria_a_producto(
-    data: schemas.ProductoCategoriaAssign,
-    id: int = Path(..., gt=0),
-    session: Session = Depends(get_session),
-    _admin: Usuario = Depends(require_role(["admin"])),
-):
-    return services.asociar_categoria(
-        session, id, data.categoria_id, data.es_principal
-    )
-
-
-@router.get(
-    "/{id}/categorias",
-    response_model=List[schemas.CategoriaRead],
-    status_code=status.HTTP_200_OK,
-)
-def listar_categorias_de_producto(
-    id: int = Path(..., gt=0),
-    session: Session = Depends(get_session),
-    _user: Usuario = Depends(get_current_active_user),
-):
-    return services.listar_categorias_de_producto(session, id)
-
-
-@router.delete(
-    "/{id}/categorias/{categoria_id}",
-    response_model=schemas.ProductoRead,
-    status_code=status.HTTP_200_OK,
-)
-def desasociar_categoria_de_producto(
-    id: int = Path(..., gt=0),
-    categoria_id: int = Path(..., gt=0),
-    session: Session = Depends(get_session),
-    _admin: Usuario = Depends(require_role(["admin"])),
-):
-    return services.desasociar_categoria(session, id, categoria_id)
+) -> None:
+    try:
+        service.eliminar(id)
+    except ProductoNoEncontrado as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc

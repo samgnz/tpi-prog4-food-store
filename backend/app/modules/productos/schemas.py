@@ -1,63 +1,84 @@
-from datetime import datetime
-from typing import List, Optional
-from pydantic import BaseModel, Field, field_validator
+from typing import Any, List, Optional
+from pydantic import field_validator, model_validator
+from sqlmodel import Field, SQLModel
 
-from app.categoria.schema import CategoriaRead
+from app.modules.categorias.schemas import CategoriaRead
 
 
-class ProductoBase(BaseModel):
-    nombre: str = Field(..., min_length=1, example="Pizza de Muzzarella")
-    descripcion: str = Field(
-        default="", example="Pizza con salsa de tomate y queso muzzarella"
-    )
-    precio_base: float = Field(..., ge=0, example=12500.0)
-    imagenes_url: List[str] = Field(
-        default_factory=list, examples=[["https://ejemplo.com/pizza.jpg"]]
-    )
-    disponible: bool = True
+class ProductoCreate(SQLModel):
+    nombre: str = Field(..., min_length=1, max_length=150)
+    descripcion: str = Field(default="")
+    precio_base: float = Field(..., ge=0)
+    imagen_url: str = Field(default="")
+    stock: int = Field(default=0, ge=0)
+    disponible: bool = Field(default=True)
+    categoria_id: int = Field(..., gt=0)
 
     @field_validator("nombre")
     @classmethod
-    def validar_nombre_no_vacio(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError(
-                "El nombre no puede quedar vacío ni contener solo espacios"
-            )
-        return v.strip()
+    def validar_nombre(cls, v: str) -> str:
+        limpio = v.strip()
+        if not limpio:
+            raise ValueError("El nombre no puede estar vacío")
+        return limpio
 
 
-class ProductoCreate(ProductoBase):
-    categoria_ids: Optional[List[int]] = Field(default=None, examples=[[1]])
-
-
-class ProductoUpdate(BaseModel):
-    nombre: Optional[str] = None
-    descripcion: Optional[str] = None
+class ProductoUpdate(SQLModel):
+    nombre: Optional[str] = Field(default=None, min_length=1, max_length=150)
+    descripcion: Optional[str] = Field(default=None)
     precio_base: Optional[float] = Field(default=None, ge=0)
-    imagenes_url: Optional[List[str]] = None
-    disponible: Optional[bool] = None
-    categoria_ids: Optional[List[int]] = None
+    imagen_url: Optional[str] = Field(default=None)
+    stock: Optional[int] = Field(default=None, ge=0)
+    disponible: Optional[bool] = Field(default=None)
+    categoria_id: Optional[int] = Field(default=None, gt=0)
+
+    @model_validator(mode="before")
+    @classmethod
+    def rechazar_nulos_explicitos(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            campos = (
+                "nombre",
+                "descripcion",
+                "precio_base",
+                "imagen_url",
+                "stock",
+                "disponible",
+                "categoria_id",
+            )
+            for campo in campos:
+                if campo in data and data[campo] is None:
+                    raise ValueError(f"El campo '{campo}' no puede ser nulo")
+        return data
 
     @field_validator("nombre")
     @classmethod
-    def validar_nombre_no_vacio(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None and not v.strip():
-            raise ValueError(
-                "El nombre no puede quedar vacío ni contener solo espacios"
-            )
-        return v.strip() if v is not None else None
+    def validar_nombre(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        limpio = v.strip()
+        if not limpio:
+            raise ValueError("El nombre no puede estar vacío")
+        return limpio
 
 
-class ProductoRead(ProductoBase):
+class ProductoStockUpdate(SQLModel):
+    stock: int = Field(..., ge=0)
+    disponible: bool
+
+
+class ProductoRead(SQLModel):
     id: int
-    categorias: List[CategoriaRead] = []
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    deleted_at: Optional[datetime] = None
+    categoria_id: int
+    nombre: str
+    descripcion: str
+    precio_base: float
+    imagen_url: str
+    stock: int
+    disponible: bool
+    activo: bool
+    categoria: CategoriaRead
 
-    model_config = {"from_attributes": True}
 
-
-class ProductoCategoriaAssign(BaseModel):
-    categoria_id: int = Field(..., gt=0, example=1)
-    es_principal: bool = Field(default=False, example=True)
+class ProductosPaginados(SQLModel):
+    total: int
+    items: List[ProductoRead]

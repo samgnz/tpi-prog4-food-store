@@ -1,29 +1,26 @@
+export type UserRole = "user" | "admin";
+
 export interface UsuarioAuth {
   id: number;
-  nombre: string;
-  apellido: string;
+  username: string;
+  full_name: string;
   email: string;
-  celular?: string | null;
-  roles: string[];
+  role: UserRole;
+  disabled: boolean;
+  created_at: string;
 }
 
-export interface UsuarioAdmin extends UsuarioAuth {
-  activo: boolean;
-  created_at?: string | null;
-  updated_at?: string | null;
-  deleted_at?: string | null;
-}
+export type UsuarioAdmin = UsuarioAuth;
 
 export interface LoginCredentials {
-  email: string;
+  username: string;
   password: string;
 }
 
 export interface RegisterPayload {
-  nombre: string;
-  apellido: string;
+  username: string;
+  full_name: string;
   email: string;
-  celular?: string | null;
   password: string;
 }
 
@@ -31,7 +28,7 @@ export interface AuthState {
   user: UsuarioAuth | null;
   isLoading: boolean;
   checking: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   checkSession: () => Promise<void>;

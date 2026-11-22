@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, getErrorMessage } from "@/shared/api/api";
 import { useNotificationStore } from "@/store/notificationStore";
-import type { Categoria } from "../types/category.types";
+import type { Categoria, CategoriaPayload } from "../types/category.types";
 
 export async function getCategorias(): Promise<Categoria[]> {
   try {
@@ -15,7 +15,7 @@ export async function getCategorias(): Promise<Categoria[]> {
 }
 
 export async function createCategoriaApi(
-  data: Omit<Categoria, "id">
+  data: CategoriaPayload
 ): Promise<Categoria> {
   try {
     const response = await api.post<Categoria>("/categorias", data);
@@ -29,7 +29,7 @@ export async function createCategoriaApi(
 
 export async function updateCategoriaApi(
   id: number,
-  data: Omit<Categoria, "id">
+  data: CategoriaPayload
 ): Promise<Categoria> {
   try {
     const response = await api.put<Categoria>(`/categorias/${id}`, data);
@@ -64,7 +64,7 @@ export function useCategories() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (nuevaCategoria: Omit<Categoria, "id">) =>
+    mutationFn: (nuevaCategoria: CategoriaPayload) =>
       createCategoriaApi(nuevaCategoria),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["categorias"] });
@@ -76,13 +76,8 @@ export function useCategories() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({
-      id,
-      datos,
-    }: {
-      id: number;
-      datos: Omit<Categoria, "id">;
-    }) => updateCategoriaApi(id, datos),
+    mutationFn: ({ id, datos }: { id: number; datos: CategoriaPayload }) =>
+      updateCategoriaApi(id, datos),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["categorias"] });
       showNotification("Categoría actualizada correctamente");
@@ -113,8 +108,5 @@ export function useCategories() {
     createMutation,
     updateMutation,
     deleteMutation,
-    createCategory: createMutation.mutateAsync,
-    updateCategory: updateMutation.mutateAsync,
-    deleteCategory: deleteMutation.mutate,
   };
 }

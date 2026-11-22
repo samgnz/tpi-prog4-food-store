@@ -23,7 +23,13 @@ export function setupInterceptors(): void {
         requestUrl.includes("/auth/token") || requestUrl.includes("/auth/me");
 
       // 401: sin sesión o sesión vencida -> limpia el store y ProtectedRoute redirige a /login
-      if (status === 401 && !isAuthLoginOrMe) {
+      const detail = error.response?.data?.detail;
+      const isAccountDisabled =
+        status === 400 &&
+        typeof detail === "string" &&
+        detail === "Cuenta de usuario desactivada";
+
+      if ((status === 401 && !isAuthLoginOrMe) || isAccountDisabled) {
         useAuthStore.getState().clearSession();
       }
 

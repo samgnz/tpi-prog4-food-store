@@ -24,7 +24,7 @@ export async function registerUser(
 
 export async function getAdminUsers(): Promise<UsuarioAdmin[]> {
   try {
-    const response = await api.get<UsuarioAdmin[]>("/auth/admin/usuarios");
+    const response = await api.get<UsuarioAdmin[]>("/admin/usuarios");
     return response.data;
   } catch (error: unknown) {
     throw new Error(
@@ -37,7 +37,7 @@ export async function getAdminUsers(): Promise<UsuarioAdmin[]> {
 export async function activateAdminUser(id: number): Promise<UsuarioAdmin> {
   try {
     const response = await api.post<UsuarioAdmin>(
-      `/auth/admin/usuarios/${id}/activar`
+      `/admin/usuarios/${id}/activar`
     );
     return response.data;
   } catch (error: unknown) {
@@ -50,13 +50,14 @@ export async function activateAdminUser(id: number): Promise<UsuarioAdmin> {
 export async function deactivateAdminUser(id: number): Promise<UsuarioAdmin> {
   try {
     const response = await api.post<UsuarioAdmin>(
-      `/auth/admin/usuarios/${id}/desactivar`
+      `/admin/usuarios/${id}/desactivar`
     );
     return response.data;
   } catch (error: unknown) {
-    throw new Error(getErrorMessage(error, "Error al desactivar el usuario"), {
-      cause: error,
-    });
+    throw new Error(
+      getErrorMessage(error, "Error al desactivar el usuario"),
+      { cause: error }
+    );
   }
 }
 
@@ -72,16 +73,16 @@ export function useAuth() {
     (state) => state.showNotification
   );
 
-  const isAdmin = Boolean(user?.roles.includes("admin"));
+  const isAdmin = user?.role === "admin";
 
-  const login = async (email: string, password: string) => {
+  const login = async (username: string, password: string) => {
     try {
-      await storeLogin(email, password);
+      await storeLogin(username, password);
       showNotification("Sesión iniciada correctamente");
     } catch (error: unknown) {
       const msg = getErrorMessage(
         error,
-        "Credenciales inválidas. Verifica tu email y contraseña."
+        "Credenciales inválidas. Verificá tu usuario y contraseña."
       );
       showNotification(msg);
       throw new Error(msg, { cause: error });

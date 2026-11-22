@@ -1,111 +1,214 @@
 from datetime import datetime, timezone
-from typing import List, Optional
-from app.pedidos.models import DetallePedido, HistorialEstadoPedido, Pedido
-from app.pedidos.schemas import PedidoCreate, PedidoRead, PedidoUpdate
-from app.pedidos.unit_of_work import PedidoUnitOfWork
+from typing import Dict, Optional, Set
+
+from app.modules.pedidos.models import DetallePedido, Pedido
+from app.modules.pedidos.schemas import (
+    CambioEstado,
+    PedidoCreate,
+    PedidoRead,
+    PedidosPaginados,
+    ResumenPedidos,
+)
+from app.modules.pedidos.unit_of_work import PedidoUnitOfWork
+from app.modules.usuarios.models import Usuario
 
 
 class PedidoNoEncontrado(Exception):
     def __init__(self, pedido_id: int):
-        self.pedido_id = pedido_id
         super().__init__(f"Pedido con id {pedido_id} no encontrado")
 
 
 class ProductoNoEncontrado(Exception):
     def __init__(self, producto_id: int):
-        self.producto_id = producto_id
         super().__init__(f"Producto con id {producto_id} no encontrado")
 
 
-class EstadoPedidoInvalidoError(Exception):
-    def __init__(self, estado_actual: str):
-        self.estado_actual = estado_actual
+class PedidoAjeno(Exception):
+    def __init__(self):
+        super().__init__("No tiene permisos para acceder a este pedido")
+
+
+class ProductoRepetido(Exception):
+    def __init__(self, producto_id: int):
         super().__init__(
-            f"No se puede modificar el estado de un pedido que ya se encuentra {estado_actual}"
+            f"El producto con id {producto_id} está repetido en el pedido"
         )
+
+
+class ProductoNoDisponible(Exception):
+    def __init__(self, nombre: str):
+        super().__init__(f"El producto '{nombre}' no está disponible")
+
+
+class StockInsuficiente(Exception):
+    def __init__(self, nombre: str, disponible: int, solicitado: int):
+        super().__init__(
+            f"Stock insuficiente para '{nombre}' "
+            f"(disponible: {disponible}, solicitado: {solicitado})"
+        )
+
+
+class TransicionInvalida(Exception):
+    def __init__(self, estado_actual: str, estado_nuevo: str):
+        super().__init__(
+            f"No se puede pasar un pedido de '{estado_actual}' a '{estado_nuevo}'"
+        )
+
+
+TRANSICIONES_VALIDAS: Dict[str, Set[str]] = {
+    "PENDIENTE": {"EN_PREPARACION", "CANCELADO"},
+    "EN_PREPARACION": {"ENTREGADO", "CANCELADO"},
+    "ENTREGADO": set(),
+    "CANCELADO": set(),
+}
 
 
 class PedidoService:
     def __init__(self, uow: PedidoUnitOfWork):
         self.uow = uow
 
-    def listar(self, skip: int = 0, limit: int = 100) -> List[PedidoRead]:
-        with self.uow as uow:
-            pedidos = uow.pedidos.get_all_active(skip=skip, limit=limit)
-            return [PedidoRead.model_validate(p) for p in pedidos]
+    def _restituir_stock(
+        self, uow: PedidoUnitOfWork, pedido: Pedido
+    ) -> None:
+        for item in pedido.items:
+            producto = uow.productos.get_by_id(item.producto_id)
+            if producto is not None:
+                producto.stock += item.cantidad
+                uow.productos.update(producto)
 
-    def obtener_por_id(self, pedido_id: int) -> PedidoRead:
+    def crear(self, data: PedidoCreate, usuario_id: int) -> PedidoRead:
         with self.uow as uow:
-            pedido = uow.pedidos.get_active_by_id(pedido_id)
-            if pedido is None:
-                raise PedidoNoEncontrado(pedido_id)
-            return PedidoRead.model_validate(pedido)
+            vistos: Set[int] = set()
+            for item in data.items:
+                if item.producto_id in vistos:
+                    raise ProductoRepetido(item.producto_id)
+                vistos.add(item.producto_id)
 
-    def crear(
-        self, data: PedidoCreate, usuario_id: Optional[int] = None
-    ) -> PedidoRead:
-        """Crea un pedido tomando el usuario_id de la sesión autenticada (RN-05)."""
-        with self.uow as uow:
-            pedido = uow.pedidos.create(
-                Pedido(usuario_id=usuario_id, estado="PENDIENTE", total=0.0)
+            pedido = uow.pedidos.add(
+                Pedido(
+                    usuario_id=usuario_id,
+                    estado="PENDIENTE",
+                    forma_pago=data.forma_pago,
+                    direccion_entrega=data.direccion_entrega,
+                    notas=data.notas or "",
+                    total=0.0,
+                )
             )
             assert pedido.id is not None
+
             total = 0.0
-            for item in data.detalles:
+            for item in data.items:
                 producto = uow.productos.get_active_by_id(item.producto_id)
                 if producto is None:
                     raise ProductoNoEncontrado(item.producto_id)
+                if not producto.disponible:
+                    raise ProductoNoDisponible(producto.nombre)
+                if producto.stock < item.cantidad:
+                    raise StockInsuficiente(
+                        producto.nombre, producto.stock, item.cantidad
+                    )
+
+                producto.stock -= item.cantidad
+                uow.productos.update(producto)
+
+                subtotal = round(producto.precio_base * item.cantidad, 2)
                 assert producto.id is not None
-                uow.detalles.create(
+                uow.detalles.add(
                     DetallePedido(
                         pedido_id=pedido.id,
                         producto_id=producto.id,
                         cantidad=item.cantidad,
+                        nombre_producto=producto.nombre,
                         precio_unitario=producto.precio_base,
+                        subtotal=subtotal,
                     )
                 )
-                total += item.cantidad * producto.precio_base
+                total += subtotal
 
-            assert uow.session is not None
-            uow.session.add(
-                HistorialEstadoPedido(
-                    pedido_id=pedido.id,
-                    estado="PENDIENTE",
-                    cambiado_por_id=usuario_id,
-                )
-            )
-            pedido.total = total
+            pedido.total = round(total, 2)
+            pedido.updated_at = datetime.now(timezone.utc)
             uow.pedidos.update(pedido)
             return PedidoRead.model_validate(pedido)
 
-    def actualizar_estado(
+    def listar(
         self,
-        pedido_id: int,
-        data: PedidoUpdate,
-        cambiado_por_id: Optional[int] = None,
+        current_user: Usuario,
+        skip: int = 0,
+        limit: int = 20,
+        estado: Optional[str] = None,
+    ) -> PedidosPaginados:
+        usuario_filtro = (
+            None if current_user.role == "admin" else current_user.id
+        )
+        with self.uow as uow:
+            pedidos, total = uow.pedidos.list_by_usuario(
+                skip=skip,
+                limit=limit,
+                usuario_id=usuario_filtro,
+                estado=estado,
+            )
+            items = [PedidoRead.model_validate(p) for p in pedidos]
+            return PedidosPaginados(total=total, items=items)
+
+    def obtener_por_id(
+        self, pedido_id: int, current_user: Usuario
     ) -> PedidoRead:
         with self.uow as uow:
-            pedido = uow.pedidos.get_active_by_id(pedido_id)
+            pedido = uow.pedidos.get_by_id(pedido_id)
             if pedido is None:
                 raise PedidoNoEncontrado(pedido_id)
-            if pedido.estado in ("ENTREGADO", "CANCELADO"):
-                raise EstadoPedidoInvalidoError(pedido.estado)
+            if (
+                current_user.role != "admin"
+                and pedido.usuario_id != current_user.id
+            ):
+                raise PedidoAjeno()
+            return PedidoRead.model_validate(pedido)
+
+    def cambiar_estado(
+        self, pedido_id: int, data: CambioEstado
+    ) -> PedidoRead:
+        with self.uow as uow:
+            pedido = uow.pedidos.get_by_id(pedido_id)
+            if pedido is None:
+                raise PedidoNoEncontrado(pedido_id)
+
+            permitidos = TRANSICIONES_VALIDAS.get(pedido.estado, set())
+            if data.estado not in permitidos:
+                raise TransicionInvalida(pedido.estado, data.estado)
+
+            if data.estado == "CANCELADO":
+                self._restituir_stock(uow, pedido)
+
             pedido.estado = data.estado
             pedido.updated_at = datetime.now(timezone.utc)
-            assert uow.session is not None
-            uow.session.add(
-                HistorialEstadoPedido(
-                    pedido_id=pedido_id,
-                    estado=data.estado,
-                    cambiado_por_id=cambiado_por_id,
-                )
-            )
             uow.pedidos.update(pedido)
             return PedidoRead.model_validate(pedido)
 
-    def eliminar(self, pedido_id: int) -> None:
+    def cancelar_por_dueno(
+        self, pedido_id: int, current_user: Usuario
+    ) -> PedidoRead:
         with self.uow as uow:
-            pedido = uow.pedidos.get_active_by_id(pedido_id)
+            pedido = uow.pedidos.get_by_id(pedido_id)
             if pedido is None:
                 raise PedidoNoEncontrado(pedido_id)
-            uow.pedidos.soft_delete(pedido)
+            if pedido.usuario_id != current_user.id:
+                raise PedidoAjeno()
+            if pedido.estado != "PENDIENTE":
+                raise TransicionInvalida(pedido.estado, "CANCELADO")
+
+            self._restituir_stock(uow, pedido)
+            pedido.estado = "CANCELADO"
+            pedido.updated_at = datetime.now(timezone.utc)
+            uow.pedidos.update(pedido)
+            return PedidoRead.model_validate(pedido)
+
+    def resumen(self) -> ResumenPedidos:
+        with self.uow as uow:
+            return ResumenPedidos(
+                pendientes=uow.pedidos.count_by_estado("PENDIENTE"),
+                en_preparacion=uow.pedidos.count_by_estado("EN_PREPARACION"),
+                entregados=uow.pedidos.count_by_estado("ENTREGADO"),
+                cancelados=uow.pedidos.count_by_estado("CANCELADO"),
+                pedidos_hoy=uow.pedidos.count_pedidos_hoy(),
+                ingresos_entregados=uow.pedidos.sum_ingresos_entregados(),
+            )

@@ -19,7 +19,4 @@ dist/
 Thumbs.db
 
 #Archivos de TPI
-devoluciones_tps.txt
-PLAN_ADAPTACION_TPI.md
-TPI_Food_Store.pdf
-UML_Food_Store.svg
+docs/

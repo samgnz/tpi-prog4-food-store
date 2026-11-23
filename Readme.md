@@ -70,7 +70,7 @@
    ```
 7. Iniciar el servidor de desarrollo:
    ```powershell
-   uvicorn app.main:app --reload
+   python -m fastapi dev app/main.py
    ```
    - **API Base URL:** `http://localhost:8000/api/v1`
    - **Swagger UI:** `http://localhost:8000/docs`

@@ -1,4 +1,3 @@
-export { CategoriaCard } from "./components/CategoriaCard";
 export { CategoriaList } from "./components/CategoriaList";
 export { CategoriaModal } from "./components/CategoriaModal";
 export {

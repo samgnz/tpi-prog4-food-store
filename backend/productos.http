@@ -1,196 +1,150 @@
-@baseUrl = http://127.0.0.1:8000
+### ============================================================================
+### TPI FOOD STORE — PRUEBAS DE CATÁLOGO: CATEGORÍAS Y PRODUCTOS (/api/v1)
+### Nota: Para los endpoints de escritura (POST/PUT/PATCH/DELETE), iniciar
+### sesión primero ejecutando el Login de Admin en `auth.http`.
+### ============================================================================
+
+@baseUrl = http://localhost:8000/api/v1
 
 ### ==========================================
-### 1. MÓDULO: CATEGORÍAS (CRUD Completo)
+### 1. MÓDULO: CATEGORÍAS
 ### ==========================================
 
-### 1.1 Crear Categoría 1 (Pizzas)
+### 1.1 Listar categorías activas (Público -> 200 OK; devuelve las 4 del seed)
+GET {{baseUrl}}/categorias
+
+### 1.2 Detalle de categoría por ID (Público -> 200 OK)
+GET {{baseUrl}}/categorias/1
+
+### 1.3 Crear nueva categoría (Solo admin -> 201 Created, ID 5)
+POST {{baseUrl}}/categorias
+Content-Type: application/json
+
+{
+  "nombre": "Postres",
+  "descripcion": "Postres caseros, helados y cafetería"
+}
+
+### 1.4 Error 409 Conflict en POST — Nombre de categoría duplicado
 POST {{baseUrl}}/categorias
 Content-Type: application/json
 
 {
   "nombre": "Pizzas",
-  "descripcion": "Pizzas artesanales con masa fresca"
+  "descripcion": "Intento de duplicar Pizzas"
 }
 
-### 1.2 Crear Categoría 2 (Hamburguesas)
-POST {{baseUrl}}/categorias
+### 1.5 Actualizar categoría (Solo admin -> 200 OK)
+PUT {{baseUrl}}/categorias/5
 Content-Type: application/json
 
 {
-  "nombre": "Hamburguesas",
-  "descripcion": "Hamburguesas gourmet con ingredientes frescos"
+  "nombre": "Postres Artesanales",
+  "descripcion": "Flan casero, tiramisú y helados"
 }
 
-### 1.3 Crear Categoría 3 (Bebidas - para probar eliminar)
-POST {{baseUrl}}/categorias
+### 1.6 Error 409 Conflict en PUT — Renombrar categoría 5 con el nombre de la 1
+PUT {{baseUrl}}/categorias/5
 Content-Type: application/json
 
 {
-  "nombre": "Bebidas",
-  "descripcion": "Gaseosas, jugos naturales y agua"
+  "nombre": "Pizzas"
 }
 
-### 1.4 Listar todas las Categorías
-GET {{baseUrl}}/categorias
-
-### 1.5 Obtener detalle de Categoría por ID
-GET {{baseUrl}}/categorias/1
-
-### 1.6 Actualizar Categoría (PUT)
+### 1.7 Error 422 en PUT — Enviar campo nombre en null (blindaje de schema)
 PUT {{baseUrl}}/categorias/1
 Content-Type: application/json
 
 {
-  "nombre": "Pizzas",
-  "descripcion": "Pizzas artesanales a la piedra con masa madre"
+  "nombre": null
 }
 
-### 1.7 Eliminar Categoría (DELETE)
-DELETE {{baseUrl}}/categorias/3
+### 1.8 Baja lógica de la categoría 5 (Solo admin -> 204 No Content)
+DELETE {{baseUrl}}/categorias/5
+
+### 1.9 Error 404 — Consultar o volver a borrar categoría dada de baja
+GET {{baseUrl}}/categorias/5
 
 
 ### ==========================================
-### 2. MÓDULO: PRODUCTOS (CRUD Completo)
+### 2. MÓDULO: PRODUCTOS
 ### ==========================================
 
-### 2.1 Crear Producto (asociando categoría inicial opcional)
-POST {{baseUrl}}/productos
-Content-Type: application/json
+### 2.1 Listar productos paginados con búsqueda y filtro (Público -> 200 OK)
+GET {{baseUrl}}/productos?skip=0&limit=10&search=pizza&categoria_id=1
 
-{
-  "nombre": "Pizza Muzzarella",
-  "descripcion": "Salsa de tomate, muzzarella y aceitunas verdes",
-  "precio_base": 12500.0,
-  "imagenes_url": [
-    "https://ejemplo.com/img/pizza-muzzarella.jpg"
-  ],
-  "disponible": true,
-  "categoria_ids": [1]
-}
-
-### 2.2 Crear segundo Producto (sin categorías iniciales)
-POST {{baseUrl}}/productos
-Content-Type: application/json
-
-{
-  "nombre": "Hamburguesa Doble Cheddar",
-  "descripcion": "Doble medallón de carne, cheddar y panceta",
-  "precio_base": 10800.0,
-  "imagenes_url": [
-    "https://ejemplo.com/img/burger-doble.jpg"
-  ],
-  "disponible": true
-}
-
-### 2.3 Listar todos los Productos
-GET {{baseUrl}}/productos
-
-### 2.4 Obtener detalle de un Producto por ID (incluye sus categorías)
+### 2.2 Detalle de producto con su categoría (Público -> 200 OK)
 GET {{baseUrl}}/productos/1
 
-### 2.5 Actualizar un Producto (PUT)
+### 2.3 Crear producto (Solo admin -> 201 Created, ID 9)
+POST {{baseUrl}}/productos
+Content-Type: application/json
+
+{
+  "nombre": "Pizza Fugazzeta Rellena",
+  "descripcion": "Cebolla caramelizada, abundante muzzarella y jamón",
+  "precio_base": 15500.0,
+  "imagen_url": "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600",
+  "stock": 12,
+  "disponible": true,
+  "categoria_id": 1
+}
+
+### 2.4 Error 404 — Crear producto con categoría inexistente o dada de baja
+POST {{baseUrl}}/productos
+Content-Type: application/json
+
+{
+  "nombre": "Producto Huérfano",
+  "descripcion": "Categoría inexistente",
+  "precio_base": 5000.0,
+  "imagen_url": "",
+  "stock": 5,
+  "disponible": true,
+  "categoria_id": 9999
+}
+
+### 2.5 Error 422 — Precio negativo con categoría válida
+POST {{baseUrl}}/productos
+Content-Type: application/json
+
+{
+  "nombre": "Producto Precio Inválido",
+  "descripcion": "Prueba de validación de precio_base >= 0",
+  "precio_base": -500.0,
+  "imagen_url": "",
+  "stock": 5,
+  "disponible": true,
+  "categoria_id": 1
+}
+
+### 2.6 Actualizar producto (PUT parcial seguro -> 200 OK)
+PUT {{baseUrl}}/productos/9
+Content-Type: application/json
+
+{
+  "precio_base": 16200.0
+}
+
+### 2.7 Error 422 en PUT — Enviar precio_base o imagen_url en null
 PUT {{baseUrl}}/productos/1
 Content-Type: application/json
 
 {
-  "nombre": "Pizza Muzzarella Especial",
-  "descripcion": "Salsa de tomate casera, doble muzzarella, orégano y aceitunas",
-  "precio_base": 13500.0,
-  "imagenes_url": [
-    "https://ejemplo.com/img/muzzarella-especial.jpg"
-  ],
+  "imagen_url": null
+}
+
+### 2.8 Actualizar stock y disponibilidad (PATCH /productos/{id}/stock -> 200 OK)
+PATCH {{baseUrl}}/productos/1/stock
+Content-Type: application/json
+
+{
+  "stock": 25,
   "disponible": true
 }
 
+### 2.9 Baja lógica del producto 9 (Solo admin -> 204 No Content)
+DELETE {{baseUrl}}/productos/9
 
-### ==========================================
-### 3. RELACIÓN: PRODUCTO_CATEGORIA (N:M)
-### ==========================================
-
-### 3.1 Asociar Categoría 2 al Producto 2 (POST /productos/{id}/categorias)
-POST {{baseUrl}}/productos/2/categorias
-Content-Type: application/json
-
-{
-  "categoria_id": 2
-}
-
-### 3.2 Asociar también Categoría 1 al Producto 2 (un producto con múltiples categorías)
-POST {{baseUrl}}/productos/2/categorias
-Content-Type: application/json
-
-{
-  "categoria_id": 1
-}
-
-### 3.3 Listar Categorías asociadas al Producto 2 (GET /productos/{id}/categorias)
-GET {{baseUrl}}/productos/2/categorias
-
-### 3.4 Desasociar Categoría 1 del Producto 2 (DELETE /productos/{id}/categorias/{categoria_id})
-DELETE {{baseUrl}}/productos/2/categorias/1
-
-
-### ==========================================
-### 4. MÓDULO: INGREDIENTES (CRUD Completo - HU-05)
-### ==========================================
-
-### 4.1 Crear Ingrediente 1 (Muzzarella) (201 Created)
-POST {{baseUrl}}/ingredientes
-Content-Type: application/json
-
-{
-  "nombre": "Queso Muzzarella"
-}
-
-### 4.2 Crear Ingrediente 2 (Salsa de Tomate) (201 Created)
-POST {{baseUrl}}/ingredientes
-Content-Type: application/json
-
-{
-  "nombre": "Salsa de Tomate"
-}
-
-### 4.3 Crear Ingrediente 3 (Aceitunas Verdes - para eliminar) (201 Created)
-POST {{baseUrl}}/ingredientes
-Content-Type: application/json
-
-{
-  "nombre": "Aceitunas Verdes"
-}
-
-### 4.4 Listar todos los Ingredientes (200 OK)
-GET {{baseUrl}}/ingredientes
-
-### 4.5 Obtener detalle de Ingrediente por ID (200 OK)
-GET {{baseUrl}}/ingredientes/1
-
-### 4.6 Actualizar Ingrediente (PUT) (200 OK)
-PUT {{baseUrl}}/ingredientes/1
-Content-Type: application/json
-
-{
-  "nombre": "Queso Muzzarella Premium"
-}
-
-### 4.7 Error 422 — Nombre de ingrediente vacío o solo espacios (RN-10)
-POST {{baseUrl}}/ingredientes
-Content-Type: application/json
-
-{
-  "nombre": "    "
-}
-
-### 4.8 Error 409 — Nombre de ingrediente duplicado sin distinción de mayúsculas (RN-10)
-POST {{baseUrl}}/ingredientes
-Content-Type: application/json
-
-{
-  "nombre": "salsa de tomate"
-}
-
-### 4.9 Eliminar Ingrediente (DELETE) (204 No Content)
-DELETE {{baseUrl}}/ingredientes/3
-
-### 4.10 Error 404 — Operar sobre ingrediente inexistente (RN-11)
-GET {{baseUrl}}/ingredientes/9999
+### 2.10 Error 404 — Consultar producto dado de baja
+GET {{baseUrl}}/productos/9

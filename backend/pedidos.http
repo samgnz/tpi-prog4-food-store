@@ -1,158 +1,124 @@
-@baseUrl = http://127.0.0.1:8000
+### ============================================================================
+### TPI FOOD STORE — PRUEBAS DE PEDIDOS, STOCK Y MÁQUINA DE ESTADOS (/api/v1)
+### Requisito previo: Iniciar sesión en `auth.http` (como cliente o admin).
+### ============================================================================
 
-### ====================================================================
-### MÓDULO: PEDIDOS Y DETALLE_PEDIDO (Models-Schemas-Repository-UoW-Service-Router)
-### ====================================================================
-### Nota: Asegurarse de tener creados los productos con ID 1 y 2
-### (ejecutando `python seed.py` o las pruebas de `productos.http`).
+@baseUrl = http://localhost:8000/api/v1
 
-### 1. Crear Pedido válido con múltiples detalles (201 Created — Transacción UoW)
+### 1. Crear Pedido 1 válido (201 Created — RN-01: descuenta stock y copia nombre/precio)
 POST {{baseUrl}}/pedidos
 Content-Type: application/json
 
 {
-  "detalles": [
-    {
-      "producto_id": 1,
-      "cantidad": 2
-    },
-    {
-      "producto_id": 2,
-      "cantidad": 1
-    }
-  ]
+  "items": [
+    { "producto_id": 1, "cantidad": 2 },
+    { "producto_id": 3, "cantidad": 1 }
+  ],
+  "forma_pago": "EFECTIVO",
+  "direccion_entrega": "Av. Colón 1234, Córdoba",
+  "notas": "Tocar timbre del 2B"
 }
 
-### 2. Crear segundo Pedido válido (para probar borrado lógico luego) (201 Created)
+### 2. Crear Pedido 2 válido (para probar cancelación y restitución de stock)
 POST {{baseUrl}}/pedidos
 Content-Type: application/json
 
 {
-  "detalles": [
-    {
-      "producto_id": 1,
-      "cantidad": 1
-    }
-  ]
+  "items": [
+    { "producto_id": 2, "cantidad": 1 }
+  ],
+  "forma_pago": "TRANSFERENCIA",
+  "direccion_entrega": "Bv. San Juan 450, Córdoba",
+  "notas": ""
 }
 
-### 3. Listar todos los Pedidos activos (no eliminados) (200 OK)
-GET {{baseUrl}}/pedidos
+### 3. Listar pedidos paginados (200 OK — propios si es user, todos si es admin)
+GET {{baseUrl}}/pedidos?skip=0&limit=20
 
-### 4. Obtener detalle de un Pedido por ID con sus DetallePedido (200 OK)
+### 4. Obtener detalle del Pedido 1 con sus líneas inmutables (200 OK)
 GET {{baseUrl}}/pedidos/1
 
-### 5. Actualizar estado del Pedido a CONFIRMADO (200 OK)
-PUT {{baseUrl}}/pedidos/1
+### 5. Avanzar Pedido 1 de PENDIENTE a EN_PREPARACION (Solo admin -> 200 OK, RN-02)
+PATCH {{baseUrl}}/pedidos/1/estado
 Content-Type: application/json
 
 {
-  "estado": "CONFIRMADO"
+  "estado": "EN_PREPARACION"
 }
 
-### 6. Actualizar estado del Pedido a ENTREGADO (200 OK)
-PUT {{baseUrl}}/pedidos/1
+### 6. Avanzar Pedido 1 de EN_PREPARACION a ENTREGADO (Solo admin -> 200 OK, RN-02)
+PATCH {{baseUrl}}/pedidos/1/estado
 Content-Type: application/json
 
 {
   "estado": "ENTREGADO"
 }
 
-### ====================================================================
-### CASOS DE VALIDACIÓN Y ERRORES (422, 404 y 409)
-### ====================================================================
-
-### 7. Error 422 — Pedido con producto_id repetido en dos detalles (RN-12)
-POST {{baseUrl}}/pedidos
-Content-Type: application/json
-
-{
-  "detalles": [
-    {
-      "producto_id": 1,
-      "cantidad": 2
-    },
-    {
-      "producto_id": 1,
-      "cantidad": 3
-    }
-  ]
-}
-
-### 8. Error 422 — Pedido sin detalles (lista vacía) (RN-12)
-POST {{baseUrl}}/pedidos
-Content-Type: application/json
-
-{
-  "detalles": []
-}
-
-### 9. Error 422 — Detalle con cantidad menor que 1 (RN-12)
-POST {{baseUrl}}/pedidos
-Content-Type: application/json
-
-{
-  "detalles": [
-    {
-      "producto_id": 1,
-      "cantidad": 0
-    }
-  ]
-}
-
-### 10. Error 404 — Detalle referencia un producto inexistente (Rollback de UoW: no guarda el pedido ni el primer detalle)
-POST {{baseUrl}}/pedidos
-Content-Type: application/json
-
-{
-  "detalles": [
-    {
-      "producto_id": 1,
-      "cantidad": 2
-    },
-    {
-      "producto_id": 9999,
-      "cantidad": 1
-    }
-  ]
-}
-
-### 11. Error 422 — Actualizar estado con un valor fuera de los permitidos
-PUT {{baseUrl}}/pedidos/2
-Content-Type: application/json
-
-{
-  "estado": "EN_CAMINO"
-}
-
-### 12. Error 409 (Opcional) — Intentar cambiar el estado de un pedido ya ENTREGADO (estado terminal)
-PUT {{baseUrl}}/pedidos/1
+### 7. Error 400 — Intentar modificar un pedido en estado terminal ENTREGADO (RN-02)
+PATCH {{baseUrl}}/pedidos/1/estado
 Content-Type: application/json
 
 {
   "estado": "CANCELADO"
 }
 
-### 13. Error 404 — Consultar un pedido inexistente (RN-13)
-GET {{baseUrl}}/pedidos/9999
+### 8. Cancelar Pedido 2 en estado PENDIENTE como dueño (200 OK — RN-03: restituye stock)
+PATCH {{baseUrl}}/pedidos/2/cancelar
+
+### 9. Consultar Resumen del panel de administración (Solo admin -> 200 OK)
+GET {{baseUrl}}/pedidos/resumen
+
 
 ### ====================================================================
-### BORRADO LÓGICO (Soft Delete con deleted_at)
+### CASOS DE REGLAS DE NEGOCIO Y ROLLBACK TRANSACCIONAL (RN-01, RN-06)
 ### ====================================================================
 
-### 14. Eliminar lógicamente el Pedido 2 (204 No Content — completa deleted_at)
-DELETE {{baseUrl}}/pedidos/2
-
-### 15. Verificar que el Pedido 2 ya no aparece en el listado (200 OK)
-GET {{baseUrl}}/pedidos
-
-### 16. Error 404 — Consultar el Pedido 2 eliminado lógicamente (RN-13)
-GET {{baseUrl}}/pedidos/2
-
-### 17. Error 404 — Intentar actualizar un Pedido eliminado lógicamente (RN-13)
-PUT {{baseUrl}}/pedidos/2
+### 10. Error 400 ProductoRepetido — Mismo producto dos veces en el pedido
+POST {{baseUrl}}/pedidos
 Content-Type: application/json
 
 {
-  "estado": "CONFIRMADO"
+  "items": [
+    { "producto_id": 1, "cantidad": 1 },
+    { "producto_id": 1, "cantidad": 2 }
+  ],
+  "forma_pago": "EFECTIVO",
+  "direccion_entrega": "Av. Colón 1234"
+}
+
+### 11. Error 400 StockInsuficiente — Cantidad supera el stock disponible (Rollback total)
+POST {{baseUrl}}/pedidos
+Content-Type: application/json
+
+{
+  "items": [
+    { "producto_id": 1, "cantidad": 9999 }
+  ],
+  "forma_pago": "EFECTIVO",
+  "direccion_entrega": "Av. Colón 1234"
+}
+
+### 12. Error 404 ProductoNoEncontrado — Segundo ítem no existe (Rollback del primer ítem)
+POST {{baseUrl}}/pedidos
+Content-Type: application/json
+
+{
+  "items": [
+    { "producto_id": 1, "cantidad": 1 },
+    { "producto_id": 9999, "cantidad": 1 }
+  ],
+  "forma_pago": "EFECTIVO",
+  "direccion_entrega": "Av. Colón 1234"
+}
+
+### 13. Error 422 — Dirección de entrega demasiado corta (< 5 caracteres, RN-06)
+POST {{baseUrl}}/pedidos
+Content-Type: application/json
+
+{
+  "items": [
+    { "producto_id": 1, "cantidad": 1 }
+  ],
+  "forma_pago": "EFECTIVO",
+  "direccion_entrega": "123"
 }

@@ -1,76 +1,83 @@
 ### ============================================================================
-### COLECCIÓN DE PRUEBAS REST CLIENT — UNIDAD 9: AUTENTICACIÓN JWT & ROLES
-### Base URL: http://localhost:8000
+### TPI FOOD STORE — PRUEBAS DE AUTENTICACIÓN Y USUARIOS (/api/v1)
+### Requisito previo: haber ejecutado `python -m app.db.seed`
 ### ============================================================================
 
 @baseUrl = http://localhost:8000/api/v1
 
-### 1. Registro de nuevo usuario (HU-01, RN-08 -> 201 Created)
+### 1. Registro público de nuevo cliente (201 Created, rol "user")
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
 {
-  "nombre": "Lucía",
-  "apellido": "Gómez",
+  "username": "luciagomez",
+  "full_name": "Lucía Gómez",
   "email": "lucia.gomez@foodstore.com",
-  "celular": "+5493519876543",
-  "password": "Password123"
+  "password": "Password123!"
 }
 
-### 2. Registro con email duplicado (RN-02 -> 409 Conflict)
+### 2. Error 409 Conflict — Registro con username duplicado
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
 {
-  "nombre": "Lucía",
-  "apellido": "Gómez",
-  "email": "lucia.gomez@foodstore.com",
-  "password": "Password123"
+  "username": "luciagomez",
+  "full_name": "Otra Lucía",
+  "email": "otra.lucia@foodstore.com",
+  "password": "Password123!"
 }
 
-### 3. Registro con contraseña corta < 8 caracteres (RN-09 -> 422 Unprocessable Entity)
+### 3. Error 409 Conflict — Registro con email duplicado (distinto username)
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
 {
-  "nombre": "Pedro",
-  "apellido": "Corto",
+  "username": "lucia2",
+  "full_name": "Lucía Dos",
+  "email": "lucia.gomez@foodstore.com",
+  "password": "Password123!"
+}
+
+### 4. Error 422 — Registro con contraseña corta (< 8 caracteres)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "pedrocorto",
+  "full_name": "Pedro Corto",
   "email": "pedro@foodstore.com",
   "password": "123"
 }
 
-### 4. Login como Administrador (HU-02, RN-03 -> 200 OK + Set-Cookie access_token HttpOnly)
+### 5. Login como Administrador del seed (200 OK + Cookie HttpOnly access_token)
 POST {{baseUrl}}/auth/token
 Content-Type: application/x-www-form-urlencoded
 
-username=admin@foodstore.com&password=admin1234
+username=admin&password=Admin1234!
 
-### 5. Login como Usuario Estándar (rol 'user')
+### 6. Error 401 — Login con credenciales incorrectas
 POST {{baseUrl}}/auth/token
 Content-Type: application/x-www-form-urlencoded
 
-username=user@foodstore.com&password=user1234
+username=admin&password=PasswordIncorrecta
 
-### 6. Obtener perfil y roles vigentes del usuario en sesión (HU-02, HU-04 -> 200 OK)
+### 7. Consultar perfil del usuario autenticado (200 OK)
 GET {{baseUrl}}/auth/me
 
-### 7. Listar usuarios (Solo Admin -> 200 OK para admin, 403 Forbidden para user)
-GET {{baseUrl}}/auth/admin/usuarios
+### 8. Listar todos los usuarios (Solo admin -> 200 OK)
+GET {{baseUrl}}/admin/usuarios
 
-### 8. Desactivar usuario con ID 2 (Solo Admin -> 200 OK, completa deleted_at)
-POST {{baseUrl}}/auth/admin/usuarios/2/desactivar
+### 9. Error 400 — El admin intenta desactivarse a sí mismo (ID 1)
+POST {{baseUrl}}/admin/usuarios/1/desactivar
 
-### 9. Activar usuario con ID 2 (Solo Admin -> 200 OK, vuelve deleted_at a null)
-POST {{baseUrl}}/auth/admin/usuarios/2/activar
+### 10. Desactivar usuario cliente con ID 2 (Solo admin -> 200 OK, disabled=true)
+POST {{baseUrl}}/admin/usuarios/2/desactivar
 
-### 10. Catálogos de solo lectura (RN-06 -> 200 OK en GET, 405 Method Not Allowed en POST)
-GET http://localhost:8000/roles
+### 11. Activar usuario cliente con ID 2 (Solo admin -> 200 OK, disabled=false)
+POST {{baseUrl}}/admin/usuarios/2/activar
 
-###
-GET http://localhost:8000/estados-pedido
+### 12. Error 404 — Activar usuario inexistente
+POST {{baseUrl}}/admin/usuarios/9999/activar
 
-###
-GET http://localhost:8000/formas-pago
-
-### 11. Cerrar sesión (HU-03 -> 200 OK + Set-Cookie que borra access_token)
+### 13. Cerrar sesión (200 OK, borra la cookie access_token)
 POST {{baseUrl}}/auth/logout

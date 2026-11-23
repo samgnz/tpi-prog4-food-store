@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { ErrorState, LoadingState } from "@/shared/components/StatusStates";
 import { AdminUsersTable } from "../components/AdminUsersTable";
-import { useAdminUsers } from "../hooks/useAuth";
+import { useAdminUsers, useAuth } from "../hooks/useAuth";
 
 export const AdminUsersPage = () => {
+  const { user } = useAuth();
   const {
     usuarios,
     isLoading,
@@ -34,12 +35,12 @@ export const AdminUsersPage = () => {
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
             Gestión de Usuarios
           </h2>
           <p className="text-xs text-slate-500">
             Panel exclusivo para administradores: activación y desactivación
-            lógica de cuentas (deleted_at)
+            lógica de cuentas
           </p>
         </div>
         <span className="text-xs font-semibold text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
@@ -63,6 +64,7 @@ export const AdminUsersPage = () => {
 
       <AdminUsersTable
         usuarios={usuarios}
+        currentUserId={user?.id ?? null}
         isPending={isPending}
         onActivate={(id) =>
           activateMutation.mutate(id, {

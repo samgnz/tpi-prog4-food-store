@@ -13,10 +13,10 @@ export const UnauthorizedPage = () => {
       </p>
       <div className="pt-2 flex items-center justify-center gap-3">
         <Link
-          to="/categories"
+          to="/"
           className="px-4 py-2 text-sm font-semibold text-white bg-[#4338ca] hover:bg-[#3730a3] rounded-lg shadow-sm transition-colors"
         >
-          Volver a Categorías
+          Volver al inicio
         </Link>
       </div>
     </section>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/features/auth";
 import { BadgeEstado } from "@/shared/components/BadgeEstado";
 import { Paginacion } from "@/shared/components/Paginacion";
 import {
@@ -13,6 +14,7 @@ const LIMIT = 10;
 
 export const MisPedidosPage = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [page, setPage] = useState(0);
     const { pedidos, total, isLoading, isError, error, refetch } = usePedidos({
         skip: page * LIMIT,
@@ -100,7 +102,8 @@ export const MisPedidosPage = () => {
                                                 maximumFractionDigits: 2,
                                             })}
                                         </p>
-                                        {pedido.estado === "PENDIENTE" && (
+                                        {pedido.estado === "PENDIENTE" &&
+                                            pedido.usuario_id === user?.id && (
                                             <button
                                                 type="button"
                                                 disabled={cancelarMutation.isPending}

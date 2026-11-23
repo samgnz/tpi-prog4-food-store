@@ -25,7 +25,7 @@ export const ProductoModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[1px] p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold text-slate-800">
             {productoEditar ? "Editar producto" : "Nuevo producto"}
@@ -52,7 +52,7 @@ export const ProductoModal = ({
             e.stopPropagation();
             void form.handleSubmit();
           }}
-          className="space-y-4"
+          className="space-y-3.5"
         >
           <form.Field
             name="nombre"
@@ -107,39 +107,131 @@ export const ProductoModal = ({
             )}
           </form.Field>
 
+          <div className="grid grid-cols-2 gap-3">
+            <form.Field
+              name="precio_base"
+              validators={{
+                onChange: ({ value }) =>
+                  typeof value !== "number" || Number.isNaN(value) || value < 0
+                    ? "Precio inválido (>= 0)"
+                    : undefined,
+                onSubmit: ({ value }) =>
+                  typeof value !== "number" || Number.isNaN(value) || value < 0
+                    ? "Precio inválido (>= 0)"
+                    : undefined,
+              }}
+            >
+              {(field) => (
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Precio base ($) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={
+                      Number.isNaN(field.state.value) ? "" : field.state.value
+                    }
+                    onBlur={field.handleBlur}
+                    onChange={(e) =>
+                      field.handleChange(
+                        e.target.value === "" ? NaN : Number(e.target.value)
+                      )
+                    }
+                    placeholder="12500"
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                  />
+                  {field.state.meta.errors.length > 0 && (
+                    <p className="mt-1 text-xs text-red-600 font-medium">
+                      {field.state.meta.errors.join(", ")}
+                    </p>
+                  )}
+                </div>
+              )}
+            </form.Field>
+
+            <form.Field
+              name="stock"
+              validators={{
+                onChange: ({ value }) =>
+                  typeof value !== "number" ||
+                    Number.isNaN(value) ||
+                    !Number.isInteger(value) ||
+                    value < 0
+                    ? "Entero >= 0"
+                    : undefined,
+                onSubmit: ({ value }) =>
+                  typeof value !== "number" ||
+                    Number.isNaN(value) ||
+                    !Number.isInteger(value) ||
+                    value < 0
+                    ? "Entero >= 0"
+                    : undefined,
+              }}
+            >
+              {(field) => (
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Stock *
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={
+                      Number.isNaN(field.state.value) ? "" : field.state.value
+                    }
+                    onBlur={field.handleBlur}
+                    onChange={(e) =>
+                      field.handleChange(
+                        e.target.value === "" ? NaN : Number(e.target.value)
+                      )
+                    }
+                    placeholder="10"
+                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                  />
+                  {field.state.meta.errors.length > 0 && (
+                    <p className="mt-1 text-xs text-red-600 font-medium">
+                      {field.state.meta.errors.join(", ")}
+                    </p>
+                  )}
+                </div>
+              )}
+            </form.Field>
+          </div>
+
           <form.Field
-            name="precio_base"
+            name="categoria_id"
             validators={{
               onChange: ({ value }) =>
-                typeof value !== "number" || Number.isNaN(value) || value < 0
-                  ? "El precio base no puede ser negativo"
+                !value || value <= 0
+                  ? "Seleccioná una categoría"
                   : undefined,
               onSubmit: ({ value }) =>
-                typeof value !== "number" || Number.isNaN(value) || value < 0
-                  ? "El precio base no puede ser negativo"
+                !value || value <= 0
+                  ? "Seleccioná una categoría"
                   : undefined,
             }}
           >
             {(field) => (
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Precio base ($) *
+                  Categoría *
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={
-                    Number.isNaN(field.state.value) ? "" : field.state.value
-                  }
+                <select
+                  value={field.state.value || ""}
                   onBlur={field.handleBlur}
-                  onChange={(e) =>
-                    field.handleChange(
-                      e.target.value === "" ? NaN : Number(e.target.value)
-                    )
-                  }
-                  placeholder="Ej: 12500"
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                />
+                  onChange={(e) => field.handleChange(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                >
+                  <option value="">Seleccioná una categoría...</option>
+                  {categoriasDisponibles.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.nombre}
+                    </option>
+                  ))}
+                </select>
                 {field.state.meta.errors.length > 0 && (
                   <p className="mt-1 text-xs text-red-600 font-medium">
                     {field.state.meta.errors.join(", ")}
@@ -149,54 +241,22 @@ export const ProductoModal = ({
             )}
           </form.Field>
 
-          <form.Field name="categoria_ids">
-            {(field) => {
-              const selectedIds = field.state.value ?? [];
-              const toggleCat = (catId: number) => {
-                if (selectedIds.includes(catId)) {
-                  field.handleChange(selectedIds.filter((id) => id !== catId));
-                } else {
-                  field.handleChange([...selectedIds, catId]);
-                }
-              };
-
-              return (
-                <div>
-                  <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                    Categorías asociadas
-                  </label>
-                  {categoriasDisponibles.length === 0 ? (
-                    <p className="text-xs italic text-slate-400">
-                      No hay categorías registradas aún.
-                    </p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto p-2 bg-slate-50 rounded-lg border border-slate-200">
-                      {categoriasDisponibles.map((cat) => {
-                        const checked = selectedIds.includes(cat.id);
-                        return (
-                          <label
-                            key={cat.id}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium cursor-pointer select-none border transition-colors ${
-                              checked
-                                ? "bg-indigo-50 text-indigo-700 border-indigo-300"
-                                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleCat(cat.id)}
-                              className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 cursor-pointer"
-                            />
-                            {cat.nombre}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            }}
+          <form.Field name="imagen_url">
+            {(field) => (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  URL de imagen
+                </label>
+                <input
+                  type="url"
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  placeholder="https://ejemplo.com/imagen.jpg"
+                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                />
+              </div>
+            )}
           </form.Field>
 
           <form.Field name="disponible">
@@ -239,8 +299,8 @@ export const ProductoModal = ({
                   {isSubmitting
                     ? "Guardando..."
                     : productoEditar
-                    ? "Guardar cambios"
-                    : "Guardar"}
+                      ? "Guardar cambios"
+                      : "Guardar"}
                 </button>
               </div>
             )}

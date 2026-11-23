@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from app.core.deps import get_current_active_user, require_role
 from app.modules.pedidos.schemas import (
     CambioEstado,
+    EstadoPedidoType,
     PedidoCreate,
     PedidoRead,
     PedidosPaginados,
@@ -64,7 +65,7 @@ def crear_pedido(
 def listar_pedidos(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
-    estado: Optional[str] = Query(None),
+    estado: Optional[EstadoPedidoType] = Query(None),
     service: PedidoService = Depends(get_pedido_service),
     current_user: Usuario = Depends(get_current_active_user),
 ) -> PedidosPaginados:

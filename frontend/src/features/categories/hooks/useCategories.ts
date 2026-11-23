@@ -80,6 +80,7 @@ export function useCategories() {
       updateCategoriaApi(id, datos),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["categorias"] });
+      void queryClient.invalidateQueries({ queryKey: ["productos"] });
       showNotification("Categoría actualizada correctamente");
     },
     onError: (err: Error) => {
@@ -91,6 +92,7 @@ export function useCategories() {
     mutationFn: (id: number) => deleteCategoriaApi(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["categorias"] });
+      void queryClient.invalidateQueries({ queryKey: ["productos"] });
       showNotification("Categoría eliminada correctamente");
     },
     onError: (err: Error) => {

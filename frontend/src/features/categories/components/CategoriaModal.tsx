@@ -54,14 +54,22 @@ export const CategoriaModal = ({
           <form.Field
             name="nombre"
             validators={{
-              onChange: ({ value }) =>
-                !value.trim()
-                  ? "El nombre de la categoría es obligatorio"
-                  : undefined,
-              onSubmit: ({ value }) =>
-                !value.trim()
-                  ? "El nombre de la categoría es obligatorio"
-                  : undefined,
+              onChange: ({ value }) => {
+                const len = value.trim().length;
+                if (len < 2)
+                  return "El nombre debe tener al menos 2 caracteres";
+                if (len > 100)
+                  return "El nombre no puede superar los 100 caracteres";
+                return undefined;
+              },
+              onSubmit: ({ value }) => {
+                const len = value.trim().length;
+                if (len < 2)
+                  return "El nombre debe tener al menos 2 caracteres";
+                if (len > 100)
+                  return "El nombre no puede superar los 100 caracteres";
+                return undefined;
+              },
             }}
           >
             {(field) => (
@@ -124,8 +132,8 @@ export const CategoriaModal = ({
                   {isSubmitting
                     ? "Guardando..."
                     : categoriaEditar
-                    ? "Guardar cambios"
-                    : "Guardar"}
+                      ? "Guardar cambios"
+                      : "Guardar"}
                 </button>
               </div>
             )}

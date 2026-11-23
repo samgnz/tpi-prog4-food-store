@@ -4,32 +4,31 @@ import { useForm } from "@tanstack/react-form";
 import { useAuth } from "../hooks/useAuth";
 
 interface LoginFormValues {
-  email: string;
+  username: string;
   password: string;
 }
 
 export const LoginPage = () => {
   const navigate = useNavigate();
   const { user, isLoading, login } = useAuth();
-
   const [serverError, setServerError] = useState<string | null>(null);
 
   const form = useForm({
     defaultValues: {
-      email: "",
+      username: "",
       password: "",
     } as LoginFormValues,
     onSubmit: async ({ value }) => {
       setServerError(null);
       try {
-        await login(value.email.trim(), value.password);
-        navigate("/categories", { replace: true });
+        await login(value.username.trim(), value.password);
+        navigate("/", { replace: true });
       } catch (error: unknown) {
         if (error instanceof Error) {
           setServerError(error.message);
         } else {
           setServerError(
-            "Credenciales inválidas. Verifica tu email y contraseña."
+            "Credenciales inválidas. Verificá tu usuario y contraseña."
           );
         }
       }
@@ -37,7 +36,7 @@ export const LoginPage = () => {
   });
 
   if (!isLoading && user) {
-    return <Navigate to="/categories" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return (
@@ -48,7 +47,7 @@ export const LoginPage = () => {
         </span>
         <h2 className="text-2xl font-bold text-slate-800">Iniciar sesión</h2>
         <p className="text-xs text-slate-500">
-          Ingresa con tu correo electrónico para acceder al Food Store
+          Ingresá con tu nombre de usuario para operar en Food Store
         </p>
       </div>
 
@@ -70,36 +69,26 @@ export const LoginPage = () => {
         className="space-y-4"
       >
         <form.Field
-          name="email"
+          name="username"
           validators={{
-            onChange: ({ value }) => {
-              if (!value.trim()) return "El email es obligatorio";
-              if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
-                return "Ingresa un email con formato válido";
-              }
-              return undefined;
-            },
-            onSubmit: ({ value }) => {
-              if (!value.trim()) return "El email es obligatorio";
-              if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
-                return "Ingresa un email con formato válido";
-              }
-              return undefined;
-            },
+            onChange: ({ value }) =>
+              !value.trim() ? "El nombre de usuario es obligatorio" : undefined,
+            onSubmit: ({ value }) =>
+              !value.trim() ? "El nombre de usuario es obligatorio" : undefined,
           }}
         >
           {(field) => (
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
-                Email *
+                Usuario *
               </label>
               <input
-                type="email"
+                type="text"
                 value={field.state.value}
                 onBlur={field.handleBlur}
                 onChange={(e) => field.handleChange(e.target.value)}
-                placeholder="usuario@foodstore.com"
-                autoComplete="email"
+                placeholder="admin"
+                autoComplete="username"
                 className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
               />
               {field.state.meta.errors.length > 0 && (
@@ -170,15 +159,11 @@ export const LoginPage = () => {
         </p>
         <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-3 text-left text-[11px] text-slate-500 space-y-1">
           <p className="font-semibold text-slate-700">
-            Cuentas de prueba (seed.py):
+            Usuario inicial del seed:
           </p>
           <p>
-            • <strong>Admin:</strong> <code>admin@foodstore.com</code> /{" "}
-            <code>admin1234</code>
-          </p>
-          <p>
-            • <strong>User:</strong> <code>user@foodstore.com</code> /{" "}
-            <code>user1234</code>
+            • <strong>Admin:</strong> <code>admin</code> /{" "}
+            <code>Admin1234!</code>
           </p>
         </div>
       </div>

@@ -8,6 +8,7 @@ export {
   useProducts,
 } from "./hooks/useProducts";
 export { ProductsPage } from "./pages/ProductsPage";
+export { CatalogoPage } from "./pages/CatalogoPage";
 export type {
   Producto,
   ProductoFormValues,

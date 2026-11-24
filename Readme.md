@@ -10,7 +10,7 @@
 ## 🔗 Enlaces de Entrega
 
 - **Repositorio público de GitHub (CE-01):** `https://github.com/samgnz/tpi-prog4-food-store`
-- **Video de demostración (CE-07):** `https://...` *(reemplazar por el link público del video de 10 a 15 min)*
+- **Video de demostración (CE-07):** `https://www.youtube.com/watch?v=g079D3tKFK0&feature=youtu.be`
 
 ---
 
